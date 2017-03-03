@@ -19,41 +19,38 @@ static NSString * const apiKey = @"1796c09fd7616b8f1534c86ee98cc305";
 
 + (void)fetchMovieForSearchTerm:(NSString *)searchTerm completion:(void (^)(NSArray * _Nonnull))completion
 {
-    NSURL *baseURL = [NSURL URLWithString:baseURLString];
-    // build parameters
-    NSMutableDictionary *urlParameters = [[NSMutableDictionary alloc] init];
     
-    [urlParameters setValue:apiKey forKey:@"api_key"];
-    [urlParameters setValue:searchTerm forKey:@"query"];
+    NSURL *baseURL = [[NSURL alloc]initWithString:baseURLString];
+    NSURLComponents *urlComponents = [NSURLComponents componentsWithURL:baseURL resolvingAgainstBaseURL:YES];
+    NSURLQueryItem *posterItem = [NSURLQueryItem queryItemWithName:@"query" value:searchTerm];
+    NSURLQueryItem *apiKeyItem = [NSURLQueryItem queryItemWithName:@"api_key" value:apiKey];
     
-    // perform request
-    [NetworkController performRequestFor:baseURL httpMethodString:@"GET" urlParameters:urlParameters body:nil completion:^(NSData * data, NSError * error) {
-        if (error) {
-            NSLog(@"Error returning movie for search term: %@");
-            completion(nil);
-            return;
-        }
+    NSArray *queryitems = @[posterItem, apiKeyItem];
+    urlComponents.queryItems = queryitems;
+    NSURL *movieResultsEndpoint = urlComponents.URL;
+    
+    //URL Session
+    [[[NSURLSession sharedSession] dataTaskWithURL:movieResultsEndpoint completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+     
+        if (error) { NSLog(@"Error: %@", error); completion(nil); }
         
-        // Convert from data to JSON to dict
+        if (!data) { NSLog(@"Error: No data returned from task"); completion(nil); }
         
         NSDictionary *jsonDictionary = [NSJSONSerialization JSONObjectWithData:data options:NSJSONReadingAllowFragments error:&error];
         
         if (!jsonDictionary || ![jsonDictionary isKindOfClass:[NSDictionary class]]) {
-            NSLog(@"Error parsing json: %@", error);
+            NSLog(@"Error: could not parse");
             completion(nil);
-            return;
         }
-        
-        //Use Failable, get results array
-        NSArray *movieDicts = jsonDictionary[@"results"];
+        NSArray *movieDictionaries = jsonDictionary[@"results"];
         NSMutableArray *movies = [NSMutableArray new];
         
-        for (NSDictionary *movie in movieDicts) {
+        for (NSDictionary *movie in movieDictionaries) {
             DMNMovie *newMovie = [[DMNMovie alloc]initWithDictionary:movie];
             [movies addObject:newMovie];
         }
         completion(movies);
-    }];
+    }] resume];
 }
 
 + (void)fetchPoster:(NSString *)imagePath completion:(void (^)(UIImage * _Nonnull))completion
