@@ -22,6 +22,7 @@
         _title = [title copy];
         _rating = rating;
         _overview = [overview copy];
+        _posterImage = [posterImage copy];
     }
     return self;
 }
